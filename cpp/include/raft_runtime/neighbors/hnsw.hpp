@@ -23,26 +23,26 @@
 
 namespace raft::runtime::neighbors::hnsw {
 
-#define RAFT_INST_HNSW_FUNCS(T, IdxT)                                         \
-  std::unique_ptr<raft::neighbors::hnsw::index<T>> from_cagra(                \
-    raft::resources const& res, raft::neighbors::cagra::index<T, IdxT>);      \
-  void search(raft::resources const& handle,                                  \
-              raft::neighbors::hnsw::search_params const& params,             \
-              raft::neighbors::hnsw::index<T> const& index,                   \
-              raft::host_matrix_view<const T, int64_t, row_major> queries,    \
-              raft::host_matrix_view<uint64_t, int64_t, row_major> neighbors, \
-              raft::host_matrix_view<float, int64_t, row_major> distances);   \
-  template <typename DType>                                                   \
-  std::unique_ptr<raft::neighbors::hnsw::index<DType>> deserialize_file(      \
-    raft::resources const& handle,                                            \
-    const std::string& filename,                                              \
-    int dim,                                                                  \
-    raft::distance::DistanceType metric);                                     \
-  template <>                                                                 \
-  std::unique_ptr<raft::neighbors::hnsw::index<T>> deserialize_file(          \
-    raft::resources const& handle,                                            \
-    const std::string& filename,                                              \
-    int dim,                                                                  \
+#define RAFT_INST_HNSW_FUNCS(T, IdxT)                                        \
+  std::unique_ptr<raft::neighbors::hnsw::index<T>> from_cagra(               \
+    raft::resources const& res, raft::neighbors::cagra::index<T, IdxT>);     \
+  void search(raft::resources const& handle,                                 \
+              raft::neighbors::hnsw::search_params const& params,            \
+              raft::neighbors::hnsw::index<T> const& index,                  \
+              raft::host_matrix_view<const T, int64_t, row_major> queries,   \
+              raft::host_matrix_view<int64_t, int64_t, row_major> neighbors, \
+              raft::host_matrix_view<float, int64_t, row_major> distances);  \
+  template <typename DType>                                                  \
+  std::unique_ptr<raft::neighbors::hnsw::index<DType>> deserialize_file(     \
+    raft::resources const& handle,                                           \
+    const std::string& filename,                                             \
+    int dim,                                                                 \
+    raft::distance::DistanceType metric);                                    \
+  template <>                                                                \
+  std::unique_ptr<raft::neighbors::hnsw::index<T>> deserialize_file(         \
+    raft::resources const& handle,                                           \
+    const std::string& filename,                                             \
+    int dim,                                                                 \
     raft::distance::DistanceType metric);
 
 RAFT_INST_HNSW_FUNCS(float, uint32_t);

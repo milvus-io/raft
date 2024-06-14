@@ -32,7 +32,7 @@ template <typename T>
 void get_search_knn_results(hnswlib::HierarchicalNSW<typename hnsw_dist_t<T>::type> const* idx,
                             const T* query,
                             int k,
-                            uint64_t* indices,
+                            int64_t* indices,
                             float* distances)
 {
   auto result = idx->searchKnn(query, k);
@@ -50,14 +50,13 @@ void search(raft::resources const& res,
             const search_params& params,
             const index<T>& idx,
             raft::host_matrix_view<const T, int64_t, row_major> queries,
-            raft::host_matrix_view<uint64_t, int64_t, row_major> neighbors,
+            raft::host_matrix_view<int64_t, int64_t, row_major> neighbors,
             raft::host_matrix_view<float, int64_t, row_major> distances)
 {
   idx.set_ef(params.ef);
   auto const* hnswlib_index =
     reinterpret_cast<hnswlib::HierarchicalNSW<typename hnsw_dist_t<T>::type> const*>(
       idx.get_index());
-
   // when num_threads == 0, automatically maximize parallelism
   if (params.num_threads) {
 #pragma omp parallel for num_threads(params.num_threads)

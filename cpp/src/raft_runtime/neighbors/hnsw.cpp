@@ -55,7 +55,7 @@ namespace raft::runtime::neighbors::hnsw {
               raft::neighbors::hnsw::search_params const& params,                           \
               const raft::neighbors::hnsw::index<T>& index,                                 \
               raft::host_matrix_view<const T, int64_t, row_major> queries,                  \
-              raft::host_matrix_view<uint64_t, int64_t, row_major> neighbors,               \
+              raft::host_matrix_view<int64_t, int64_t, row_major> neighbors,                \
               raft::host_matrix_view<float, int64_t, row_major> distances)                  \
   {                                                                                         \
     raft::neighbors::hnsw::search<T>(handle, params, index, queries, neighbors, distances); \

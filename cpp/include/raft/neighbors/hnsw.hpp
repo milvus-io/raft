@@ -122,7 +122,7 @@ void search(raft::resources const& res,
             const search_params& params,
             const index<T>& idx,
             raft::host_matrix_view<const T, int64_t, row_major> queries,
-            raft::host_matrix_view<uint64_t, int64_t, row_major> neighbors,
+            raft::host_matrix_view<int64_t, int64_t, row_major> neighbors,
             raft::host_matrix_view<float, int64_t, row_major> distances)
 {
   RAFT_EXPECTS(
