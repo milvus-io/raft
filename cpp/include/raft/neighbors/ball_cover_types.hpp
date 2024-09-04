@@ -15,7 +15,7 @@
  */
 
 #pragma once
-
+#include <raft/core/copy.cuh>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/host_mdspan.hpp>
@@ -48,13 +48,13 @@ template <typename value_idx,
           typename matrix_idx = std::int64_t>
 class BallCoverIndex {
  public:
-  explicit BallCoverIndex(raft::resources const& handle_,
-                          const value_t* X_,
-                          value_int m_,
-                          value_int n_,
-                          raft::distance::DistanceType metric_)
-    : handle(handle_),
-      X(raft::make_device_matrix_view<const value_t, matrix_idx>(X_, m_, n_)),
+  BallCoverIndex(raft::resources const& handle,
+                 const value_t* X_,
+                 value_int m_,
+                 value_int n_,
+                 raft::distance::DistanceType metric_)
+    : S(raft::make_device_matrix<value_t, matrix_idx>(handle, m_, n_)),
+      X(S.view()),
       m(m_),
       n(n_),
       metric(metric_),
@@ -73,13 +73,18 @@ class BallCoverIndex {
       R_radius(raft::make_device_vector<value_t, matrix_idx>(handle, sqrt(m_))),
       index_trained(false)
   {
+    raft::copy(handle, S.view(), raft::make_host_matrix_view(X_, m_, n_));
   }
 
-  explicit BallCoverIndex(raft::resources const& handle_,
-                          raft::device_matrix_view<const value_t, matrix_idx, row_major> X_,
-                          raft::distance::DistanceType metric_)
-    : handle(handle_),
-      X(X_),
+  [[nodiscard]] constexpr inline auto size() const noexcept { return S.extent(0); }
+
+  [[nodiscard]] constexpr inline auto dim() const noexcept { return S.extent(1); }
+
+  BallCoverIndex(raft::resources const& handle,
+                 raft::device_matrix_view<const value_t, matrix_idx, row_major> X_,
+                 raft::distance::DistanceType metric_)
+    : S(raft::make_device_matrix<value_t, matrix_idx>(handle, X_.extent(0), X_.extent(1))),
+      X(S.view()),
       m(X_.extent(0)),
       n(X_.extent(1)),
       metric(metric_),
@@ -99,7 +104,43 @@ class BallCoverIndex {
       R_radius(raft::make_device_vector<value_t, matrix_idx>(handle, sqrt(X_.extent(0)))),
       index_trained(false)
   {
+    raft::copy(handle, S.view(), X_);
+    raft::resource::sync_stream(res);
   }
+
+  BallCoverIndex(raft::resources const& handle,
+                 raft::host_matrix_view<const value_t, matrix_idx, row_major> X_,
+                 raft::distance::DistanceType metric_)
+    : S(raft::make_device_matrix<value_t, matrix_idx>(handle, X_.extent(0), X_.extent(1))),
+      X(S.view()),
+      m(X_.extent(0)),
+      n(X_.extent(1)),
+      metric(metric_),
+      /**
+       * the sqrt() here makes the sqrt(m)^2 a linear-time lower bound
+       *
+       * Total memory footprint of index: (2 * sqrt(m)) + (n * sqrt(m)) + (2 * m)
+       */
+      n_landmarks(sqrt(X_.extent(0))),
+      R_indptr(raft::make_device_vector<value_idx, matrix_idx>(handle, sqrt(X_.extent(0)) + 1)),
+      R_1nn_cols(raft::make_device_vector<value_idx, matrix_idx>(handle, X_.extent(0))),
+      R_1nn_dists(raft::make_device_vector<value_t, matrix_idx>(handle, X_.extent(0))),
+      R_closest_landmark_dists(raft::make_device_vector<value_t, matrix_idx>(handle, X_.extent(0))),
+      R(raft::make_device_matrix<value_t, matrix_idx>(handle, sqrt(X_.extent(0)), X_.extent(1))),
+      X_reordered(
+        raft::make_device_matrix<value_t, matrix_idx>(handle, X_.extent(0), X_.extent(1))),
+      R_radius(raft::make_device_vector<value_t, matrix_idx>(handle, sqrt(X_.extent(0)))),
+      index_trained(false)
+  {
+    raft::copy(handle, S.view(), X_);
+    raft::resource::sync_stream(res);
+  }
+
+  BallCoverIndex(const BallCoverIndex&)                    = delete;
+  BallCoverIndex(BallCoverIndex&&)                         = default;
+  auto operator=(const BallCoverIndex&) -> BallCoverIndex& = delete;
+  auto operator=(BallCoverIndex&&) -> BallCoverIndex&      = default;
+  ~BallCoverIndex()                                        = default;
 
   auto get_R_indptr() const -> raft::device_vector_view<const value_idx, matrix_idx>
   {
@@ -153,12 +194,11 @@ class BallCoverIndex {
   // This should only be set by internal functions
   void set_index_trained() { index_trained = true; }
 
-  raft::resources const& handle;
-
   value_int m;
   value_int n;
   value_int n_landmarks;
 
+  raft::device_matrix<value_t, matrix_idx, row_major> S;
   raft::device_matrix_view<const value_t, matrix_idx, row_major> X;
 
   raft::distance::DistanceType metric;
